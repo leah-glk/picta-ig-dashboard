@@ -48,23 +48,31 @@ Tables are **namespaced by platform** (`instagram_posts`, `instagram_post_metric
 
 ## One-time backfill (Jan 1, 2025 → now)
 
-After the database is set up and env vars are in place:
+On the Vercel **Hobby** plan, serverless functions are capped at 300s. Backfill is chunked — one month per call — so we loop it from the CLI:
 
 ```bash
-# local (make sure .env.local is loaded)
-curl -X POST http://localhost:3000/api/backfill \
-  -H "Authorization: Bearer $CRON_SECRET"
+# Set once
+export BASE=https://YOUR-DOMAIN.vercel.app   # or http://localhost:3000
+export CRON_SECRET=...
+
+# Loop every month from Jan 2025 to current
+for m in 2025-{01..12} 2026-{01..04}; do
+  echo "=== $m ==="
+  curl -s -X POST "$BASE/api/backfill?month=$m" \
+       -H "Authorization: Bearer $CRON_SECRET"
+  echo
+done
 ```
 
-Or hit the deployed endpoint with the same header. The backfill:
+Each call:
 
-- Paginates through every media item via `/{ig-user-id}/media`
+- Paginates through media published that month
 - Skips crossposts where Picta is a collaborator (not owner)
 - Skips boosted/ads content
-- Fetches per-media insights (impressions/views/reach/etc.)
-- Captures today's followers + daily account reach + profile views
+- Fetches per-media insights (views/reach/likes/etc.)
+- Upserts account-level daily insights for the window
 
-Expect ~1–3 minutes per 100 posts.
+Expect ~30–90 seconds per month for Picta's volume. You can also hit a custom window with `?from=YYYY-MM-DD&to=YYYY-MM-DD` (≤45 days per call).
 
 ### Historical story import
 

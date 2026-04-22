@@ -11,7 +11,6 @@ import {
   listAllMedia,
   pickView,
 } from "./ig";
-import { env } from "./env";
 
 type SyncStats = {
   posts_seen: number;
@@ -201,14 +200,6 @@ async function captureTokenStatus() {
     },
     { onConflict: "platform" },
   );
-}
-
-export async function backfill() {
-  return syncRange({
-    since: new Date(env.BACKFILL_START + "T00:00:00Z"),
-    until: new Date(),
-    label: "backfill",
-  });
 }
 
 export async function dailySync() {
