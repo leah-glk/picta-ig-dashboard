@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-script: var(--font-caveat), cursive;
+
+  --color-primary-50: #F7F0FF;
+  --color-primary-100: #E9D6FF;
+  --color-primary-200: #D2AEFF;
+  --color-primary-300: #BC85FE;
+  --color-primary-400: #AB67FE;
+  --color-primary-500: #9843FE;
+  --color-primary-600: #7F24F0;
+  --color-primary-700: #5C00CB;
+  --color-primary-800: #4801A0;
+  --color-primary-900: #37017A;
+
+  --color-secondary-50: #FFECEF;
+  --color-secondary-100: #FFCFD5;
+  --color-secondary-200: #FF9D9D;
+  --color-secondary-300: #F97777;
+  --color-secondary-400: #FF5754;
+  --color-secondary-500: #FF4638;
+  --color-secondary-600: #FB3E39;
+  --color-secondary-700: #E83332;
+  --color-secondary-800: #DB2C2B;
+  --color-secondary-900: #CB201F;
+
+  --color-tertiary-50: #FDEAE6;
+  --color-tertiary-100: #FFCFBA;
+  --color-tertiary-200: #FFB18E;
+  --color-tertiary-300: #FF9360;
+  --color-tertiary-400: #FF7C3A;
+  --color-tertiary-500: #FF680F;
+  --color-tertiary-600: #F46209;
+  --color-tertiary-700: #E65A03;
+  --color-tertiary-800: #D95300;
+  --color-tertiary-900: #C04600;
+
+  --color-ink-50: #FAFAF8;
+  --color-ink-100: #F3F2EE;
+  --color-ink-200: #E6E4DD;
+  --color-ink-300: #CAC7BE;
+  --color-ink-400: #9C9A92;
+  --color-ink-500: #6E6C66;
+  --color-ink-600: #4B4A46;
+  --color-ink-700: #2F2E2B;
+  --color-ink-800: #1F1E1C;
+  --color-ink-900: #111110;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FAFAF8;
+  --foreground: #1F1E1C;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: var(--background);
+  color: var(--foreground);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.font-script {
+  font-family: var(--font-script);
+  font-weight: 500;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }

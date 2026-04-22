@@ -1,65 +1,136 @@
-import Image from "next/image";
+import { Shell } from "@/components/Shell";
+import { KpiCard } from "@/components/KpiCard";
+import { RangePicker } from "@/components/RangePicker";
+import { TrendChart } from "@/components/TrendChart";
+import { TopPostsSection } from "@/components/TopPosts";
+import { currentMonth, customRange, fmtMonthInput, monthRange } from "@/lib/dates";
+import {
+  getKpis,
+  getTopPosts,
+  getTrend,
+  getStoryDataAvailableFrom,
+} from "@/lib/queries";
+import { fmtNum, fmtPct } from "@/lib/format";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+function rangeFromSearch(sp: { month?: string; from?: string; to?: string }) {
+  if (sp.from && sp.to) return customRange(sp.from, sp.to);
+  if (sp.month) {
+    const [y, m] = sp.month.split("-").map(Number);
+    if (y && m) return monthRange(y, m - 1);
+  }
+  return currentMonth();
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; from?: string; to?: string }>;
+}) {
+  const sp = await searchParams;
+  const range = rangeFromSearch(sp);
+
+  const [kpis, trend, topStatics, topReels, storyFrom] = await Promise.all([
+    getKpis(range),
+    getTrend(range),
+    getTopPosts(range, "static", 4),
+    getTopPosts(range, "reel", 2),
+    getStoryDataAvailableFrom(),
+  ]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <Shell>
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
+            Performance
+          </div>
+          <h1 className="font-display text-5xl text-primary-700 leading-none mt-1">
+            {range.label}
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <RangePicker defaultMonth={fmtMonthInput(range.start)} />
+      </div>
+
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <KpiCard
+          label="Total Followers"
+          value={kpis.followers_end}
+          tone="primary"
+          big
+          sublabel={
+            kpis.followers_delta != null
+              ? `${kpis.followers_delta >= 0 ? "+" : ""}${fmtNum(kpis.followers_delta)} this period`
+              : "no data yet"
+          }
+        />
+        <KpiCard label="Organic Reach" value={kpis.organic_reach} big tone="primary" />
+        <KpiCard label="Total Views" value={kpis.total_views} big tone="primary" />
+        <KpiCard
+          label="Engagement Rate"
+          value={fmtPct(kpis.engagement_rate, 2)}
+          big
+          tone="tertiary"
+          sublabel="(likes + comments + saves + shares) / views"
+        />
+      </section>
+
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <KpiCard label="Reels Posted" value={kpis.reels_posted} />
+        <KpiCard label="Static Posts" value={kpis.static_posted} />
+        <KpiCard label="Page Visits" value={kpis.page_visits} />
+        <KpiCard label="Reel Views" value={kpis.reel_views} />
+        <KpiCard label="Story Views" value={kpis.story_views} />
+        <KpiCard label="Saves" value={kpis.saves} />
+        <KpiCard label="Shares" value={kpis.shares} />
+        <KpiCard label="Comments" value={kpis.comments} />
+      </section>
+
+      <section className="mb-10">
+        <TrendChart data={trend} />
+      </section>
+
+      <section className="mb-16 rounded-2xl bg-white border border-ink-200/70 p-6">
+        <div className="text-[11px] uppercase tracking-wider text-ink-500 font-medium mb-4">
+          Content interactions
         </div>
-      </main>
+        <div className="grid grid-cols-3 md:grid-cols-7 gap-6">
+          <Stat label="Likes" value={kpis.likes} />
+          <Stat label="Comments" value={kpis.comments} />
+          <Stat label="Shares" value={kpis.shares} />
+          <Stat label="Replies" value={kpis.replies} />
+          <Stat label="Saves" value={kpis.saves} />
+          <Stat label="Reposts" value={null} hint="not exposed by API" />
+          <Stat label="Profile Visits" value={kpis.profile_visits} />
+        </div>
+      </section>
+
+      <TopPostsSection statics={topStatics} reels={topReels} />
+
+      {storyFrom && (
+        <p className="mt-12 text-xs text-ink-400 text-center">
+          Story data available from {storyFrom}
+        </p>
+      )}
+    </Shell>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number | null;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <div className="text-xs text-ink-500">{label}</div>
+      <div className="mt-1 font-display text-2xl num text-ink-900">{fmtNum(value)}</div>
+      {hint && <div className="text-[10px] text-ink-400 mt-0.5">{hint}</div>}
     </div>
   );
 }
