@@ -42,6 +42,8 @@ npm run dev
 
 The schema lives in [`supabase/schema.sql`](./supabase/schema.sql) and is the single source of truth. Safe to re-run — everything uses `IF NOT EXISTS`.
 
+Tables are **namespaced by platform** (`instagram_posts`, `instagram_post_metrics`, `instagram_account_daily`, `instagram_story_imports`). When TikTok / Pinterest / YouTube get added later (Phase 2), each platform adds its own tables + data source under `lib/tiktok.ts` etc., and the UI components (`KpiCard`, `TrendChart`, `CompareTable`) stay platform-agnostic.
+
 ---
 
 ## One-time backfill (Jan 1, 2025 → now)
@@ -139,7 +141,7 @@ The Instagram Graph API access token is managed externally by Picta's social med
 | Total Views | Reel views + story views + static impressions |
 | Reel Views | `views` on reel insights |
 | Story Views | Live-captured `views` + CSV-imported `views` |
-| Static post "views" | `impressions` (per product decision; API has no views for stills) |
+| Static post "views" | `views` metric — unified across FEED/REELS/STORY since Graph API v21+ (replaces the deprecated `impressions` metric) |
 | Engagement Rate | `(likes + comments + saves + shares) / total_views` — per brief; reposts not available via API |
 | Followers delta | `followers_count` end-of-period minus start-of-period |
 | Page Visits | Account-level `profile_views` (sum over range), fallback to per-post profile_visits |

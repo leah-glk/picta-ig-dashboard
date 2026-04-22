@@ -115,10 +115,10 @@ async function fetchAbsolute<T>(url: string): Promise<T> {
 
 // --- Media insights --------------------------------------------------------
 
-// Metrics we try to pull per media. Not all apply to all media types — the API
-// will error on unsupported metrics, so we request them in type-specific groups.
+// Metrics per media type. Meta deprecated `impressions` in v22+; `views` is now
+// the unified metric across FEED / REELS / STORY. Verified live 2026-04-22.
 const METRICS_STATIC = [
-  "impressions",
+  "views",
   "reach",
   "likes",
   "comments",
@@ -130,7 +130,7 @@ const METRICS_STATIC = [
 ];
 
 const METRICS_REEL = [
-  "views",              // new unified reel view metric
+  "views",
   "reach",
   "likes",
   "comments",
@@ -196,26 +196,32 @@ export async function fetchFollowersCount(): Promise<number> {
 }
 
 export async function fetchAccountDailyInsights(sinceUnix: number, untilUnix: number) {
-  // Account-level insights: reach, profile_views.
-  // Metric availability has shifted; wrap each metric separately.
+  // Account-level insights with time_series to get per-day breakdowns.
+  // `total_value` collapses to a single number, which we don't want here.
   const wanted = ["reach", "profile_views", "views"];
   const out: Record<string, { date: string; value: number }[]> = {};
   for (const metric of wanted) {
     try {
       const res = await graph<{
-        data: { name: string; values: { value: number; end_time: string }[] }[];
+        data: {
+          name: string;
+          values: { value: number; end_time: string }[];
+        }[];
       }>(`/${env.IG_BUSINESS_ID}/insights`, {
         metric,
         period: "day",
-        metric_type: "total_value",
+        metric_type: "time_series",
         since: sinceUnix,
         until: untilUnix,
       });
       for (const d of res.data) {
-        out[d.name] = d.values.map((v) => ({ date: v.end_time.slice(0, 10), value: v.value }));
+        out[d.name] = d.values.map((v) => ({
+          date: v.end_time.slice(0, 10),
+          value: v.value,
+        }));
       }
     } catch {
-      /* ignore */
+      /* ignore — not all metrics are available on all accounts */
     }
   }
   return out;
@@ -224,7 +230,7 @@ export async function fetchAccountDailyInsights(sinceUnix: number, untilUnix: nu
 // --- Token introspection ---------------------------------------------------
 
 export async function fetchTokenDebug(): Promise<{ expires_at: number | null }> {
-  if (!env.META_APP_ID) return { expires_at: null };
+  // `/debug_token` works with the token debugging itself (no app secret needed).
   try {
     const res = await graph<{ data: { expires_at: number; is_valid: boolean } }>(
       "/debug_token",
@@ -251,8 +257,7 @@ export function isOwnerPost(media: IgMedia): boolean {
   return media.owner.id === env.IG_BUSINESS_ID;
 }
 
-export function pickView(insights: Record<string, number>, kind: "static" | "reel" | "story"): number {
-  if (kind === "static") return insights.impressions ?? insights.reach ?? 0;
-  if (kind === "reel") return insights.views ?? insights.plays ?? 0;
+export function pickView(insights: Record<string, number>): number {
+  // All three media types expose `views` in v21+. Fall back to reach if missing.
   return insights.views ?? insights.reach ?? 0;
 }

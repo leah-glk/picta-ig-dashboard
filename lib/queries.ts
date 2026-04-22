@@ -63,9 +63,9 @@ type PostRow = {
 async function fetchPostsInRange(range: DateRange): Promise<PostRow[]> {
   const db = supabaseAdmin();
   const { data, error } = await db
-    .from("posts")
+    .from("instagram_posts")
     .select(
-      "id, ig_id, kind, caption, permalink, thumbnail_url, published_at, post_metrics(views, reach, likes, comments, shares, saves, reposts, profile_visits, follows)",
+      "id, ig_id, kind, caption, permalink, thumbnail_url, published_at, instagram_post_metrics(views, reach, likes, comments, shares, saves, reposts, profile_visits, follows)",
     )
     .eq("is_owner", true)
     .eq("is_boosted", false)
@@ -75,17 +75,20 @@ async function fetchPostsInRange(range: DateRange): Promise<PostRow[]> {
 
   if (error) throw new Error(error.message);
   // Supabase returns the joined row as an array; normalize to object.
-  return (data ?? []).map((r) => ({
-    ...r,
-    post_metrics: Array.isArray(r.post_metrics) ? r.post_metrics[0] ?? null : r.post_metrics,
-  })) as PostRow[];
+  return (data ?? []).map((r: Record<string, unknown>) => {
+    const joined = r.instagram_post_metrics;
+    return {
+      ...r,
+      post_metrics: Array.isArray(joined) ? (joined[0] ?? null) : (joined ?? null),
+    };
+  }) as PostRow[];
 }
 
 async function fetchStoryImports(range: DateRange) {
   const db = supabaseAdmin();
   const { data, error } = await db
-    .from("story_imports")
-    .select("published_at, views, reach, replies, shares")
+    .from("instagram_story_imports")
+    .select("published_at, views, reach, replies, shares, likes, profile_visits")
     .gte("published_at", range.start.toISOString())
     .lt("published_at", range.end.toISOString());
   if (error) throw new Error(error.message);
@@ -97,7 +100,7 @@ async function fetchAccountDaily(range: DateRange) {
   const startIso = range.start.toISOString().slice(0, 10);
   const endIso = new Date(range.end.getTime() - 1).toISOString().slice(0, 10);
   const { data, error } = await db
-    .from("account_daily")
+    .from("instagram_account_daily")
     .select("date, followers_count, page_visits, account_reach, account_views")
     .gte("date", startIso)
     .lte("date", endIso)
@@ -260,32 +263,41 @@ export async function getTrend(range: DateRange) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function getTokenStatus(): Promise<{ expires_at: number | null }> {
+export async function getTokenStatus(): Promise<{
+  expires_at: string | null;
+  days_remaining: number | null;
+}> {
   const db = supabaseAdmin();
   const { data } = await db
-    .from("sync_runs")
-    .select("stats, started_at, status")
-    .order("started_at", { ascending: false })
-    .limit(1)
+    .from("token_status")
+    .select("expires_at")
+    .eq("platform", "instagram")
     .maybeSingle();
-  // We stash token expires_at in sync_runs.stats when the daily cron runs.
-  const expires_at = (data?.stats as { token_expires_at?: number } | null)?.token_expires_at ?? null;
-  return { expires_at };
+  const expires_at = data?.expires_at ?? null;
+  const days_remaining = expires_at
+    ? Math.floor((new Date(expires_at).getTime() - Date.now()) / 86400000)
+    : null;
+  return { expires_at, days_remaining };
 }
 
 export async function getStoryDataAvailableFrom(): Promise<string | null> {
   const db = supabaseAdmin();
-  // Earliest date across story_imports and captured story posts.
   const [{ data: imports }, { data: live }] = await Promise.all([
-    db.from("story_imports").select("published_at").order("published_at", { ascending: true }).limit(1),
     db
-      .from("posts")
+      .from("instagram_story_imports")
+      .select("published_at")
+      .order("published_at", { ascending: true })
+      .limit(1),
+    db
+      .from("instagram_posts")
       .select("published_at")
       .eq("kind", "story")
       .order("published_at", { ascending: true })
       .limit(1),
   ]);
-  const candidates = [imports?.[0]?.published_at, live?.[0]?.published_at].filter(Boolean) as string[];
+  const candidates = [imports?.[0]?.published_at, live?.[0]?.published_at].filter(
+    Boolean,
+  ) as string[];
   if (candidates.length === 0) return null;
   candidates.sort();
   return candidates[0].slice(0, 10);

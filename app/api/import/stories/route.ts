@@ -5,31 +5,52 @@ import { env } from "@/lib/env";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-// Accepts a CSV exported from Meta Business Suite (Content → Stories → Export).
-// Column names vary by export locale; we match on a few common aliases.
+// Meta Business Suite CSV importer.
+// Exports from Business Suite vary slightly in column order between date
+// ranges; we match by header name (case-insensitive).
 //
-// Required columns (any of these aliases):
-//   date:    "Publish time" | "Published" | "Publish Date" | "Date"
-//   views:   "Views" | "Impressions" | "Story views"
-//   reach:   "Reach" | "Accounts reached"
-//   replies: "Replies" | "Story replies"    (optional)
-//   shares:  "Shares" | "Story shares"      (optional)
+// Columns we capture (case-insensitive, any alias):
+//   Post ID, Publish time, Permalink, Description, Duration (sec),
+//   Views, Reach, Likes, Shares, Replies, Follows, Profile visits,
+//   Link clicks, Sticker taps
+//
+// Explicitly ignored per product decision: "Navigation" (unreliable metric).
+// Rows with "Data comment" errors (no metrics computed) are skipped silently.
 
-const ALIASES = {
-  date: ["publish time", "published", "publish date", "date", "time"],
-  views: ["views", "impressions", "story views"],
-  reach: ["reach", "accounts reached"],
-  replies: ["replies", "story replies"],
-  shares: ["shares", "story shares"],
+type Row = Record<string, string>;
+
+const ALIASES: Record<string, string[]> = {
+  ig_id:         ["post id", "id"],
+  date:          ["publish time", "published", "publish date", "date", "time"],
+  description:   ["description"],
+  permalink:     ["permalink"],
+  duration:      ["duration (sec)", "duration"],
+  views:         ["views", "impressions", "story views"],
+  reach:         ["reach", "accounts reached"],
+  likes:         ["likes"],
+  shares:        ["shares", "story shares"],
+  replies:       ["replies", "story replies"],
+  follows:       ["follows"],
+  profile_visits:["profile visits"],
+  link_clicks:   ["link clicks"],
+  sticker_taps:  ["sticker taps"],
+  data_comment:  ["data comment"],
+  post_type:     ["post type"],
 };
 
-function pickCol(header: string[], aliases: string[]): number {
+function headerMap(header: string[]): Record<string, number> {
   const norm = header.map((h) => h.trim().toLowerCase());
-  for (const a of aliases) {
-    const i = norm.indexOf(a);
-    if (i !== -1) return i;
+  const out: Record<string, number> = {};
+  for (const [key, aliases] of Object.entries(ALIASES)) {
+    for (const a of aliases) {
+      const i = norm.indexOf(a);
+      if (i !== -1) {
+        out[key] = i;
+        break;
+      }
+    }
   }
-  return -1;
+  return out;
 }
 
 function parseCsv(text: string): string[][] {
@@ -59,7 +80,7 @@ function parseCsv(text: string): string[][] {
       row = [];
       field = "";
     } else if (c === "\r") {
-      // skip
+      /* ignore */
     } else {
       field += c;
     }
@@ -69,6 +90,12 @@ function parseCsv(text: string): string[][] {
     rows.push(row);
   }
   return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+function num(s: string | undefined): number {
+  if (!s) return 0;
+  const n = Number(s.replace(/[, ]/g, ""));
+  return Number.isFinite(n) ? n : 0;
 }
 
 export async function POST(request: Request) {
@@ -94,59 +121,108 @@ export async function POST(request: Request) {
   if (rows.length < 2) {
     return NextResponse.json({ error: "empty csv" }, { status: 400 });
   }
-  const header = rows[0];
-  const iDate = pickCol(header, ALIASES.date);
-  const iViews = pickCol(header, ALIASES.views);
-  const iReach = pickCol(header, ALIASES.reach);
-  const iReplies = pickCol(header, ALIASES.replies);
-  const iShares = pickCol(header, ALIASES.shares);
 
-  if (iDate === -1 || iViews === -1 || iReach === -1) {
+  const hmap = headerMap(rows[0]);
+  if (hmap.date === undefined || hmap.views === undefined || hmap.reach === undefined) {
     return NextResponse.json(
       {
         error: "missing required columns",
-        need: ["date/publish time", "views/impressions", "reach"],
-        got: header,
+        need: ["publish time", "views", "reach"],
+        got: rows[0],
       },
       { status: 400 },
     );
   }
 
-  const parseNum = (s: string | undefined) => {
-    if (!s) return 0;
-    const n = Number(s.replace(/[, ]/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  };
-
+  const stats = { parsed: 0, skipped_error_rows: 0, skipped_no_date: 0 };
   const parsed: Array<{
+    ig_id: string | null;
     published_at: string;
+    description: string | null;
+    permalink: string | null;
+    duration_sec: number;
     views: number;
     reach: number;
-    replies: number;
+    likes: number;
     shares: number;
-    raw: Record<string, string>;
+    replies: number;
+    follows: number;
+    profile_visits: number;
+    link_clicks: number;
+    sticker_taps: number;
+    source: string;
+    raw: Row;
   }> = [];
 
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
-    const rawDate = row[iDate]?.trim();
-    if (!rawDate) continue;
+    const get = (key: string) =>
+      hmap[key] !== undefined ? row[hmap[key]]?.trim() : undefined;
+
+    // Meta sometimes emits error rows with no Post ID and a "Data comment" starting
+    // with "An error occurred". Skip those silently.
+    const dataComment = get("data_comment");
+    if (dataComment && /error/i.test(dataComment) && !get("ig_id")) {
+      stats.skipped_error_rows++;
+      continue;
+    }
+
+    const rawDate = get("date");
+    if (!rawDate) {
+      stats.skipped_no_date++;
+      continue;
+    }
     const d = new Date(rawDate);
-    if (isNaN(d.getTime())) continue;
+    if (isNaN(d.getTime())) {
+      stats.skipped_no_date++;
+      continue;
+    }
+
+    // Keep only IG story rows if Post type is present.
+    const postType = get("post_type");
+    if (postType && !/story/i.test(postType)) continue;
+
     parsed.push({
+      ig_id: get("ig_id") || null,
       published_at: d.toISOString(),
-      views: parseNum(row[iViews]),
-      reach: parseNum(row[iReach]),
-      replies: iReplies === -1 ? 0 : parseNum(row[iReplies]),
-      shares: iShares === -1 ? 0 : parseNum(row[iShares]),
-      raw: Object.fromEntries(header.map((h, i) => [h, row[i] ?? ""])),
+      description: get("description") || null,
+      permalink: get("permalink") || null,
+      duration_sec: num(get("duration")),
+      views: num(get("views")),
+      reach: num(get("reach")),
+      likes: num(get("likes")),
+      shares: num(get("shares")),
+      replies: num(get("replies")),
+      follows: num(get("follows")),
+      profile_visits: num(get("profile_visits")),
+      link_clicks: num(get("link_clicks")),
+      sticker_taps: num(get("sticker_taps")),
+      source: "meta_business_suite_csv",
+      raw: Object.fromEntries(rows[0].map((h, i) => [h, row[i] ?? ""])),
     });
+    stats.parsed++;
   }
 
   const db = supabaseAdmin();
-  const { error } = await db.from("story_imports").insert(parsed);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // Dedupe on ig_id where present (re-importing the same CSV won't double-count).
+  const withId = parsed.filter((p) => p.ig_id);
+  const withoutId = parsed.filter((p) => !p.ig_id);
+
+  let imported = 0;
+  if (withId.length > 0) {
+    const { error, count } = await db
+      .from("instagram_story_imports")
+      .upsert(withId, { onConflict: "ig_id", count: "exact" });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    imported += count ?? withId.length;
   }
-  return NextResponse.json({ ok: true, imported: parsed.length });
+  if (withoutId.length > 0) {
+    const { error, count } = await db
+      .from("instagram_story_imports")
+      .insert(withoutId, { count: "exact" });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    imported += count ?? withoutId.length;
+  }
+
+  return NextResponse.json({ ok: true, imported, stats });
 }

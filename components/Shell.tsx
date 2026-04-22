@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { TokenBanner } from "./TokenBanner";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
+      <TokenBanner />
       <header className="border-b border-ink-200/70 bg-white/60 backdrop-blur sticky top-0 z-20">
         <div className="max-w-[1280px] mx-auto px-6 py-4 flex items-baseline gap-8">
           <Link href="/" className="flex items-baseline gap-2">

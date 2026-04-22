@@ -6,6 +6,7 @@ import {
   fetchAccountDailyInsights,
   fetchFollowersCount,
   fetchMediaInsights,
+  fetchTokenDebug,
   isOwnerPost,
   listAllMedia,
   pickView,
@@ -74,7 +75,7 @@ export async function syncRange(opts: { since?: Date; until?: Date; label: strin
       };
 
       const { data: upserted, error: upErr } = await db
-        .from("posts")
+        .from("instagram_posts")
         .upsert(post, { onConflict: "ig_id" })
         .select("id")
         .single();
@@ -90,7 +91,7 @@ export async function syncRange(opts: { since?: Date; until?: Date; label: strin
         const metricsRow = {
           post_id: upserted.id,
           captured_at: new Date().toISOString(),
-          views: pickView(insights, kind),
+          views: pickView(insights),
           reach: insights.reach ?? 0,
           likes: insights.likes ?? 0,
           comments: insights.comments ?? 0,
@@ -101,7 +102,7 @@ export async function syncRange(opts: { since?: Date; until?: Date; label: strin
           follows: insights.follows ?? 0,
           raw: insights as unknown as Record<string, unknown>,
         };
-        await db.from("post_metrics").upsert(metricsRow, { onConflict: "post_id" });
+        await db.from("instagram_post_metrics").upsert(metricsRow, { onConflict: "post_id" });
         stats.metrics_upserted++;
       } catch {
         stats.errors++;
@@ -110,6 +111,9 @@ export async function syncRange(opts: { since?: Date; until?: Date; label: strin
 
     // Account-level snapshot (today's followers + daily insights for the range).
     await captureAccountSnapshot(opts.since, opts.until);
+
+    // Record token expiration for the UI banner.
+    await captureTokenStatus();
 
     await db
       .from("sync_runs")
@@ -140,7 +144,7 @@ async function captureAccountSnapshot(since?: Date, until?: Date) {
   if (followers !== null) {
     const today = new Date().toISOString().slice(0, 10);
     await db
-      .from("account_daily")
+      .from("instagram_account_daily")
       .upsert(
         { date: today, followers_count: followers, captured_at: new Date().toISOString() },
         { onConflict: "date" },
@@ -178,11 +182,25 @@ async function captureAccountSnapshot(since?: Date, until?: Date) {
       captured_at: new Date().toISOString(),
     }));
     if (rows.length > 0) {
-      await db.from("account_daily").upsert(rows, { onConflict: "date" });
+      await db.from("instagram_account_daily").upsert(rows, { onConflict: "date" });
     }
     cursor = new Date(clampedEnd);
     cursor.setDate(cursor.getDate() + 1);
   }
+}
+
+async function captureTokenStatus() {
+  const db = supabaseAdmin();
+  const info = await fetchTokenDebug().catch(() => ({ expires_at: null }));
+  await db.from("token_status").upsert(
+    {
+      platform: "instagram",
+      expires_at: info.expires_at ? new Date(info.expires_at * 1000).toISOString() : null,
+      checked_at: new Date().toISOString(),
+      raw: info as unknown as Record<string, unknown>,
+    },
+    { onConflict: "platform" },
+  );
 }
 
 export async function backfill() {
