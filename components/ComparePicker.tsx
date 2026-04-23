@@ -21,10 +21,11 @@ export function ComparePicker() {
   const [bFrom, setBFrom] = useState(sp.get("bFrom") ?? "");
   const [bTo, setBTo] = useState(sp.get("bTo") ?? "");
 
-  function apply() {
+  function apply(nextPreset = preset) {
     const p = new URLSearchParams();
-    p.set("preset", preset);
-    if (preset === "custom") {
+    p.set("preset", nextPreset);
+    if (nextPreset === "custom") {
+      if (!aFrom || !aTo || !bFrom || !bTo) return;
       p.set("aFrom", aFrom);
       p.set("aTo", aTo);
       p.set("bFrom", bFrom);
@@ -33,11 +34,16 @@ export function ComparePicker() {
     start(() => router.push(`/compare?${p.toString()}`));
   }
 
+  function onPresetChange(next: typeof preset) {
+    setPreset(next);
+    if (next !== "custom") apply(next);
+  }
+
   return (
     <div className="rounded-2xl bg-white border border-ink-200/70 p-4 flex flex-wrap items-center gap-3">
       <select
         value={preset}
-        onChange={(e) => setPreset(e.target.value as typeof preset)}
+        onChange={(e) => onPresetChange(e.target.value as typeof preset)}
         className="bg-transparent text-sm px-3 py-2 border border-ink-200 rounded-full outline-none text-ink-800"
       >
         {PRESETS.map((p) => (
@@ -78,13 +84,15 @@ export function ComparePicker() {
           />
         </>
       )}
-      <button
-        onClick={apply}
-        disabled={pending}
-        className="ml-auto rounded-full bg-primary-700 hover:bg-primary-600 text-white text-xs font-medium px-5 py-2 disabled:opacity-50"
-      >
-        {pending ? "…" : "Compare"}
-      </button>
+      {preset === "custom" && (
+        <button
+          onClick={() => apply()}
+          disabled={pending || !aFrom || !aTo || !bFrom || !bTo}
+          className="ml-auto rounded-pill bg-primary-800 hover:bg-primary-700 text-white text-xs font-medium px-5 py-2 disabled:opacity-50"
+        >
+          {pending ? "…" : "Compare"}
+        </button>
+      )}
     </div>
   );
 }

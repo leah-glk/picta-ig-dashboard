@@ -1,13 +1,13 @@
 import { Shell } from "@/components/Shell";
 import { KpiCard } from "@/components/KpiCard";
 import { RangePicker } from "@/components/RangePicker";
-import { TrendChart } from "@/components/TrendChart";
+import { YearlyBarChart } from "@/components/YearlyBarChart";
 import { TopPostsSection } from "@/components/TopPosts";
 import { currentMonth, customRange, fmtMonthInput, monthRange } from "@/lib/dates";
 import {
   getKpis,
+  getMonthlyBars,
   getTopPosts,
-  getTrend,
   getStoryDataAvailableFrom,
 } from "@/lib/queries";
 import { fmtNum, fmtPct } from "@/lib/format";
@@ -31,9 +31,9 @@ export default async function Home({
   const sp = await searchParams;
   const range = rangeFromSearch(sp);
 
-  const [kpis, trend, topStatics, topReels, storyFrom] = await Promise.all([
+  const [kpis, yearly, topStatics, topReels, storyFrom] = await Promise.all([
     getKpis(range),
-    getTrend(range),
+    getMonthlyBars(),
     getTopPosts(range, "static", 4),
     getTopPosts(range, "reel", 2),
     getStoryDataAvailableFrom(),
@@ -46,7 +46,7 @@ export default async function Home({
           <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">
             Performance
           </div>
-          <h1 className="font-display text-5xl text-primary-700 leading-none mt-1">
+          <h1 className="font-display text-5xl text-primary-800 leading-none mt-1">
             {range.label}
           </h1>
         </div>
@@ -88,20 +88,19 @@ export default async function Home({
       </section>
 
       <section className="mb-10">
-        <TrendChart data={trend} />
+        <YearlyBarChart data={yearly} />
       </section>
 
-      <section className="mb-16 rounded-2xl bg-white border border-ink-200/70 p-6">
+      <section className="mb-16 rounded-2xl bg-white border border-ink-200/70 p-6 card">
         <div className="text-[11px] uppercase tracking-wider text-ink-500 font-medium mb-4">
           Content interactions
         </div>
-        <div className="grid grid-cols-3 md:grid-cols-7 gap-6">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-6">
           <Stat label="Likes" value={kpis.likes} />
           <Stat label="Comments" value={kpis.comments} />
           <Stat label="Shares" value={kpis.shares} />
           <Stat label="Replies" value={kpis.replies} />
           <Stat label="Saves" value={kpis.saves} />
-          <Stat label="Reposts" value={null} hint="not exposed by API" />
           <Stat label="Profile Visits" value={kpis.profile_visits} />
         </div>
       </section>
@@ -120,17 +119,14 @@ export default async function Home({
 function Stat({
   label,
   value,
-  hint,
 }: {
   label: string;
   value: number | null;
-  hint?: string;
 }) {
   return (
     <div>
       <div className="text-xs text-ink-500">{label}</div>
       <div className="mt-1 font-display text-2xl num text-ink-900">{fmtNum(value)}</div>
-      {hint && <div className="text-[10px] text-ink-400 mt-0.5">{hint}</div>}
     </div>
   );
 }

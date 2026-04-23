@@ -31,7 +31,7 @@ export function RangePicker({ defaultMonth }: { defaultMonth: string }) {
         <button
           onClick={() => setMode("month")}
           className={`px-3 py-1.5 rounded-full transition ${
-            mode === "month" ? "bg-white shadow-sm text-primary-700" : "text-ink-500"
+            mode === "month" ? "bg-white shadow-sm text-primary-800" : "text-ink-500"
           }`}
         >
           Month
@@ -39,7 +39,7 @@ export function RangePicker({ defaultMonth }: { defaultMonth: string }) {
         <button
           onClick={() => setMode("custom")}
           className={`px-3 py-1.5 rounded-full transition ${
-            mode === "custom" ? "bg-white shadow-sm text-primary-700" : "text-ink-500"
+            mode === "custom" ? "bg-white shadow-sm text-primary-800" : "text-ink-500"
           }`}
         >
           Custom
@@ -72,7 +72,7 @@ export function RangePicker({ defaultMonth }: { defaultMonth: string }) {
       <button
         onClick={apply}
         disabled={pending}
-        className="ml-1 rounded-full bg-primary-700 hover:bg-primary-600 text-white text-xs font-medium px-4 py-1.5 disabled:opacity-50"
+        className="ml-1 rounded-pill bg-primary-800 hover:bg-primary-700 text-white text-xs font-medium px-4 py-1.5 disabled:opacity-50"
       >
         {pending ? "…" : "Apply"}
       </button>

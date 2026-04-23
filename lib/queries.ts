@@ -263,6 +263,60 @@ export async function getTrend(range: DateRange) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function getMonthlyBars(): Promise<
+  { month: string; views: number; reach: number }[]
+> {
+  // Returns (views, reach) per month for the current calendar year only
+  // (Jan 1 through the current month), summed across posts + stories.
+  const db = supabaseAdmin();
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const months = now.getMonth() + 1;
+
+  const [{ data: posts }, { data: stories }] = await Promise.all([
+    db
+      .from("instagram_posts")
+      .select(
+        "published_at, is_owner, is_boosted, instagram_post_metrics(views, reach)",
+      )
+      .eq("is_owner", true)
+      .eq("is_boosted", false)
+      .gte("published_at", start.toISOString()),
+    db
+      .from("instagram_story_imports")
+      .select("published_at, views, reach")
+      .gte("published_at", start.toISOString()),
+  ]);
+
+  const buckets = new Map<string, { views: number; reach: number }>();
+  for (let i = 0; i < months; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    buckets.set(key, { views: 0, reach: 0 });
+  }
+  const bucketOf = (iso: string) => iso.slice(0, 7);
+
+  for (const p of posts ?? []) {
+    const key = bucketOf(p.published_at);
+    if (!buckets.has(key)) continue;
+    const m = Array.isArray(p.instagram_post_metrics)
+      ? p.instagram_post_metrics[0]
+      : p.instagram_post_metrics;
+    if (!m) continue;
+    const b = buckets.get(key)!;
+    b.views += m.views ?? 0;
+    b.reach += m.reach ?? 0;
+  }
+  for (const s of stories ?? []) {
+    const key = bucketOf(s.published_at);
+    if (!buckets.has(key)) continue;
+    const b = buckets.get(key)!;
+    b.views += s.views ?? 0;
+    b.reach += s.reach ?? 0;
+  }
+  return [...buckets.entries()].map(([month, v]) => ({ month, ...v }));
+}
+
 export async function getTokenStatus(): Promise<{
   expires_at: string | null;
   days_remaining: number | null;

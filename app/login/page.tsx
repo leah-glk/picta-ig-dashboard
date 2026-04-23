@@ -49,8 +49,9 @@ export default async function LoginPage({
     <main className="min-h-screen grid place-items-center px-6">
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
-          <div className="font-display text-4xl text-primary-700 leading-none">Picta</div>
-          <div className="font-script text-2xl text-tertiary-500 -mt-1">dashboard</div>
+          <div className="font-display text-4xl text-primary-800 leading-none">Picta</div>
+          <div className="font-script text-3xl text-tertiary-500 mt-1">Organic</div>
+          <div className="font-display text-2xl text-primary-800 leading-none mt-1">SoMe Dashboard</div>
         </div>
         <form action={login} className="space-y-4">
           <input type="hidden" name="next" value={nextParam} />
@@ -61,7 +62,7 @@ export default async function LoginPage({
               name="password"
               autoFocus
               required
-              className="mt-1 w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-ink-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              className="mt-1 w-full rounded-pill border border-ink-200 bg-white px-5 py-3 text-ink-900 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
             />
           </label>
           {hasError && (
@@ -69,7 +70,7 @@ export default async function LoginPage({
           )}
           <button
             type="submit"
-            className="w-full rounded-xl bg-primary-700 text-white font-medium py-3 hover:bg-primary-600 transition"
+            className="w-full rounded-pill bg-primary-800 text-white font-medium py-3 hover:bg-primary-700 transition"
           >
             Enter
           </button>

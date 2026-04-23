@@ -3,19 +3,21 @@
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-script: var(--font-caveat), cursive;
+  --font-script: var(--font-script), cursive;
 
+  /* Picta primary (purple) — from Picta design system */
   --color-primary-50: #F7F0FF;
-  --color-primary-100: #E9D6FF;
-  --color-primary-200: #D2AEFF;
-  --color-primary-300: #BC85FE;
-  --color-primary-400: #AB67FE;
+  --color-primary-100: #EAD6FF;
+  --color-primary-200: #D3ACFF;
+  --color-primary-300: #B87AFF;
+  --color-primary-400: #A15CFE;
   --color-primary-500: #9843FE;
-  --color-primary-600: #7F24F0;
-  --color-primary-700: #5C00CB;
+  --color-primary-600: #7F23F0;
+  --color-primary-700: #6412CC;
   --color-primary-800: #4801A0;
-  --color-primary-900: #37017A;
+  --color-primary-900: #301277;
 
+  /* Secondary (red/coral) */
   --color-secondary-50: #FFECEF;
   --color-secondary-100: #FFCFD5;
   --color-secondary-200: #FF9D9D;
@@ -23,10 +25,11 @@
   --color-secondary-400: #FF5754;
   --color-secondary-500: #FF4638;
   --color-secondary-600: #FB3E39;
-  --color-secondary-700: #E83332;
-  --color-secondary-800: #DB2C2B;
-  --color-secondary-900: #CB201F;
+  --color-secondary-700: #DB2C2B;
+  --color-secondary-800: #AC2038;
+  --color-secondary-900: #8A192C;
 
+  /* Tertiary (orange) */
   --color-tertiary-50: #FDEAE6;
   --color-tertiary-100: #FFCFBA;
   --color-tertiary-200: #FFB18E;
@@ -34,25 +37,33 @@
   --color-tertiary-400: #FF7C3A;
   --color-tertiary-500: #FF680F;
   --color-tertiary-600: #F46209;
-  --color-tertiary-700: #E65A03;
-  --color-tertiary-800: #D95300;
-  --color-tertiary-900: #C04600;
+  --color-tertiary-700: #D95300;
+  --color-tertiary-800: #C04600;
+  --color-tertiary-900: #A33A00;
 
-  --color-ink-50: #FAFAF8;
-  --color-ink-100: #F3F2EE;
-  --color-ink-200: #E6E4DD;
-  --color-ink-300: #CAC7BE;
-  --color-ink-400: #9C9A92;
-  --color-ink-500: #6E6C66;
-  --color-ink-600: #4B4A46;
-  --color-ink-700: #2F2E2B;
-  --color-ink-800: #1F1E1C;
-  --color-ink-900: #111110;
+  /* Warm stone neutrals — kept as `ink-*` to avoid component churn */
+  --color-ink-50: #FAFAF9;
+  --color-ink-100: #F5F5F4;
+  --color-ink-200: #E7E5E4;
+  --color-ink-300: #D6D3D1;
+  --color-ink-400: #A8A29E;
+  --color-ink-500: #78716C;
+  --color-ink-600: #57534E;
+  --color-ink-700: #44403C;
+  --color-ink-800: #292524;
+  --color-ink-900: #1C1917;
+
+  /* Stars / highlight yellow (for stats / badges if needed) */
+  --color-stars-400: #FFC634;
+  --color-stars-500: #FFBA0C;
+
+  /* Button pill radius */
+  --radius-pill: 48px;
 }
 
 :root {
-  --background: #FAFAF8;
-  --foreground: #1F1E1C;
+  --background: #FAFAF9;
+  --foreground: #1C1917;
 }
 
 html, body {
@@ -67,16 +78,21 @@ body {
 
 .font-display {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .font-script {
   font-family: var(--font-script);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .num {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* Warm editorial feel per brief: subtle card shadow */
+.card {
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.04);
 }

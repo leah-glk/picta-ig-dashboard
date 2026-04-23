@@ -22,13 +22,13 @@ export function KpiCard({
 
   const valueColor =
     tone === "primary"
-      ? "text-primary-700"
+      ? "text-primary-800"
       : tone === "tertiary"
-        ? "text-tertiary-600"
+        ? "text-tertiary-700"
         : "text-ink-900";
 
   return (
-    <div className="rounded-2xl bg-white border border-ink-200/70 p-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]">
+    <div className="rounded-2xl bg-white border border-ink-200/70 p-5 card">
       <div className="text-[11px] uppercase tracking-wider text-ink-500 font-medium">{label}</div>
       <div
         className={`mt-2 font-display num ${valueColor} ${

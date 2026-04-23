@@ -21,7 +21,7 @@ npm run dev
 
 | Var | Where it comes from |
 | --- | --- |
-| `IG_BUSINESS_ID` | Instagram Business Account ID (already known: `10153548375369014`) |
+| `IG_BUSINESS_ID` | Instagram Business Account ID for @pictaphotoapp: `17841400895500099` |
 | `IG_ACCESS_TOKEN` | Long-lived token issued for the Meta app |
 | `META_APP_ID` | Meta App ID (used for `/debug_token`) |
 | `GRAPH_API_VERSION` | Default `v21.0` |
@@ -164,6 +164,8 @@ The Instagram Graph API access token is managed externally by Picta's social med
 - Alerts / notifications
 - Multi-account support
 - Reposts metric (not exposed by the API)
+- Per-reel follower vs non-follower view breakdown (Meta removed `follow_type`
+  breakdown from media-level insights in v21+; only available at account level)
 
 ---
 
