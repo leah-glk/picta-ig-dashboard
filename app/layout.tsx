@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Inter, Caveat } from "next/font/google";
+import { Bricolage_Grotesque, Inter, Dancing_Script } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,16 +15,16 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 });
 
-const caveat = Caveat({
-  variable: "--font-caveat",
+const dancing = Dancing_Script({
+  variable: "--font-script",
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Picta — Instagram Dashboard",
-  description: "Organic Instagram performance for @pictaphotoapp",
+  title: "Picta Organic SoMe Dashboard",
+  description: "Organic social media performance for @pictaphotoapp",
 };
 
 export default function RootLayout({
@@ -33,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${bricolage.variable} ${caveat.variable} h-full antialiased`}
+      className={`${inter.variable} ${bricolage.variable} ${dancing.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-ink-50 text-ink-800">{children}</body>
+      <body className="min-h-full bg-ink-50 text-ink-900">{children}</body>
     </html>
   );
 }

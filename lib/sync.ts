@@ -8,8 +8,10 @@ import {
   fetchMediaInsights,
   fetchTokenDebug,
   isOwnerPost,
+  listActiveStories,
   listAllMedia,
   pickView,
+  type IgMedia,
 } from "./ig";
 
 type SyncStats = {
@@ -46,66 +48,14 @@ export async function syncRange(opts: { since?: Date; until?: Date; label: strin
       since: sinceUnix?.toString(),
       until: untilUnix?.toString(),
     })) {
-      stats.posts_seen++;
+      await processMedia(media, stats);
+    }
 
-      if (!isOwnerPost(media)) {
-        stats.skipped_collab++;
-        continue;
-      }
-      if ((media.boost_ads_list?.length ?? 0) > 0) {
-        stats.skipped_boosted++;
-        continue;
-      }
-
-      const kind = classifyKind(media);
-      const post = {
-        ig_id: media.id,
-        media_type: media.media_product_type === "REELS" ? "REEL" : media.media_type,
-        kind,
-        published_at: media.timestamp,
-        caption: media.caption ?? null,
-        permalink: media.permalink ?? null,
-        thumbnail_url: media.thumbnail_url ?? media.media_url ?? null,
-        media_url: media.media_url ?? null,
-        is_owner: true,
-        is_boosted: false,
-        raw: media as unknown as Record<string, unknown>,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: upserted, error: upErr } = await db
-        .from("instagram_posts")
-        .upsert(post, { onConflict: "ig_id" })
-        .select("id")
-        .single();
-
-      if (upErr || !upserted) {
-        stats.errors++;
-        continue;
-      }
-      stats.posts_upserted++;
-
-      try {
-        const insights = await fetchMediaInsights(media);
-        const metricsRow = {
-          post_id: upserted.id,
-          captured_at: new Date().toISOString(),
-          views: pickView(insights),
-          reach: insights.reach ?? 0,
-          likes: insights.likes ?? 0,
-          comments: insights.comments ?? 0,
-          shares: insights.shares ?? 0,
-          saves: insights.saved ?? 0,
-          reposts: 0,
-          profile_visits: insights.profile_visits ?? 0,
-          follows: insights.follows ?? 0,
-          raw: insights as unknown as Record<string, unknown>,
-        };
-        await db.from("instagram_post_metrics").upsert(metricsRow, { onConflict: "post_id" });
-        stats.metrics_upserted++;
-      } catch {
-        stats.errors++;
-      }
+    // Live stories: /media doesn't reliably return stories, so hit /stories
+    // separately. Only currently-active (unexpired) stories are returned;
+    // historical stories come from the CSV importer.
+    for (const story of await listActiveStories()) {
+      await processMedia(story, stats);
     }
 
     // Account-level snapshot (today's followers + daily insights for the range).
@@ -132,6 +82,72 @@ export async function syncRange(opts: { since?: Date; until?: Date; label: strin
       })
       .eq("id", run?.id);
     throw e;
+  }
+}
+
+async function processMedia(media: IgMedia, stats: SyncStats) {
+  const db = supabaseAdmin();
+  stats.posts_seen++;
+
+  if (!isOwnerPost(media)) {
+    stats.skipped_collab++;
+    return;
+  }
+  // Skip ads and boosted content — belt-and-suspenders: both the ad media type
+  // and the boost_ads_list flag indicate paid content, and we only want organic.
+  if (media.media_product_type === "AD" || (media.boost_ads_list?.length ?? 0) > 0) {
+    stats.skipped_boosted++;
+    return;
+  }
+
+  const kind = classifyKind(media);
+  const post = {
+    ig_id: media.id,
+    media_type: media.media_product_type === "REELS" ? "REEL" : media.media_type,
+    kind,
+    published_at: media.timestamp,
+    caption: media.caption ?? null,
+    permalink: media.permalink ?? null,
+    thumbnail_url: media.thumbnail_url ?? media.media_url ?? null,
+    media_url: media.media_url ?? null,
+    is_owner: true,
+    is_boosted: false,
+    raw: media as unknown as Record<string, unknown>,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: upserted, error: upErr } = await db
+    .from("instagram_posts")
+    .upsert(post, { onConflict: "ig_id" })
+    .select("id")
+    .single();
+
+  if (upErr || !upserted) {
+    stats.errors++;
+    return;
+  }
+  stats.posts_upserted++;
+
+  try {
+    const insights = await fetchMediaInsights(media);
+    const metricsRow = {
+      post_id: upserted.id,
+      captured_at: new Date().toISOString(),
+      views: pickView(insights),
+      reach: insights.reach ?? 0,
+      likes: insights.likes ?? 0,
+      comments: insights.comments ?? 0,
+      shares: insights.shares ?? 0,
+      saves: insights.saved ?? 0,
+      reposts: 0,
+      profile_visits: insights.profile_visits ?? 0,
+      follows: insights.follows ?? 0,
+      raw: insights as unknown as Record<string, unknown>,
+    };
+    await db.from("instagram_post_metrics").upsert(metricsRow, { onConflict: "post_id" });
+    stats.metrics_upserted++;
+  } catch {
+    stats.errors++;
   }
 }
 

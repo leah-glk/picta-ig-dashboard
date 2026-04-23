@@ -78,6 +78,21 @@ const FEED_FIELDS = [
 
 // --- Media discovery -------------------------------------------------------
 
+export async function listActiveStories(): Promise<IgMedia[]> {
+  // `/stories` returns currently-active (unexpired) stories. Meta expires stories
+  // after 24h, so this only catches stories live at the moment of the cron run.
+  // For historical stories, use the Meta Business Suite CSV importer instead.
+  try {
+    const res = await graph<{ data: IgMedia[] }>(`/${env.IG_BUSINESS_ID}/stories`, {
+      fields: FEED_FIELDS,
+      limit: 50,
+    });
+    return res.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function* listAllMedia(params: { since?: string; until?: string } = {}) {
   // Paginates through /{ig-user-id}/media. `since`/`until` are unix seconds.
   let next: string | undefined;

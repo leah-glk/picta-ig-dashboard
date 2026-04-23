@@ -30,9 +30,9 @@ function TopGroup({
   return (
     <section className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-8 items-start">
       <div>
-        <h2 className="font-display text-[3.25rem] leading-[1.05] text-primary-700">
+        <h2 className="font-display text-[3.25rem] leading-[1.05] text-primary-800">
           {title}
-          <span className="block font-script text-tertiary-400 text-[3.5rem] leading-none -mt-3 ml-10">
+          <span className="block font-script text-tertiary-500 text-[4rem] leading-none -mt-2 ml-12">
             {scriptWord}
           </span>
         </h2>

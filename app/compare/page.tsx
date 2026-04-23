@@ -43,7 +43,7 @@ export default async function ComparePage({
     <Shell>
       <div className="mb-8">
         <div className="text-xs uppercase tracking-wider text-ink-500 font-medium">Compare</div>
-        <h1 className="font-display text-5xl text-primary-700 leading-none mt-1">
+        <h1 className="font-display text-5xl text-primary-800 leading-none mt-1">
           {a.label} <span className="text-ink-300">vs.</span> {b.label}
         </h1>
       </div>

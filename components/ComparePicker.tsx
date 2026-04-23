@@ -81,7 +81,7 @@ export function ComparePicker() {
       <button
         onClick={apply}
         disabled={pending}
-        className="ml-auto rounded-full bg-primary-700 hover:bg-primary-600 text-white text-xs font-medium px-5 py-2 disabled:opacity-50"
+        className="ml-auto rounded-pill bg-primary-800 hover:bg-primary-700 text-white text-xs font-medium px-5 py-2 disabled:opacity-50"
       >
         {pending ? "…" : "Compare"}
       </button>
