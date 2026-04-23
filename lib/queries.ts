@@ -263,14 +263,15 @@ export async function getTrend(range: DateRange) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function getMonthlyBars(
-  months = 12,
-): Promise<{ month: string; views: number; reach: number }[]> {
-  // Returns the last N months of (views, reach) summed across posts + stories,
-  // bucketed by calendar month in ET. Most recent month last.
+export async function getMonthlyBars(): Promise<
+  { month: string; views: number; reach: number }[]
+> {
+  // Returns (views, reach) per month for the current calendar year only
+  // (Jan 1 through the current month), summed across posts + stories.
   const db = supabaseAdmin();
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  const start = new Date(now.getFullYear(), 0, 1);
+  const months = now.getMonth() + 1;
 
   const [{ data: posts }, { data: stories }] = await Promise.all([
     db

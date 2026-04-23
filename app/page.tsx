@@ -1,7 +1,6 @@
 import { Shell } from "@/components/Shell";
 import { KpiCard } from "@/components/KpiCard";
 import { RangePicker } from "@/components/RangePicker";
-import { TrendChart } from "@/components/TrendChart";
 import { YearlyBarChart } from "@/components/YearlyBarChart";
 import { TopPostsSection } from "@/components/TopPosts";
 import { currentMonth, customRange, fmtMonthInput, monthRange } from "@/lib/dates";
@@ -9,7 +8,6 @@ import {
   getKpis,
   getMonthlyBars,
   getTopPosts,
-  getTrend,
   getStoryDataAvailableFrom,
 } from "@/lib/queries";
 import { fmtNum, fmtPct } from "@/lib/format";
@@ -33,10 +31,9 @@ export default async function Home({
   const sp = await searchParams;
   const range = rangeFromSearch(sp);
 
-  const [kpis, trend, yearly, topStatics, topReels, storyFrom] = await Promise.all([
+  const [kpis, yearly, topStatics, topReels, storyFrom] = await Promise.all([
     getKpis(range),
-    getTrend(range),
-    getMonthlyBars(12),
+    getMonthlyBars(),
     getTopPosts(range, "static", 4),
     getTopPosts(range, "reel", 2),
     getStoryDataAvailableFrom(),
@@ -88,10 +85,6 @@ export default async function Home({
         <KpiCard label="Saves" value={kpis.saves} />
         <KpiCard label="Shares" value={kpis.shares} />
         <KpiCard label="Comments" value={kpis.comments} />
-      </section>
-
-      <section className="mb-10">
-        <TrendChart data={trend} />
       </section>
 
       <section className="mb-10">

@@ -18,8 +18,8 @@ const MONTH_ABBR = [
 ];
 
 function labelFor(ym: string) {
-  const [y, m] = ym.split("-").map(Number);
-  return `${MONTH_ABBR[m - 1]} ${String(y).slice(2)}`;
+  const [, m] = ym.split("-").map(Number);
+  return MONTH_ABBR[m - 1];
 }
 
 export function YearlyBarChart({
@@ -33,7 +33,7 @@ export function YearlyBarChart({
       <div className="flex items-baseline justify-between mb-4">
         <div>
           <div className="text-[11px] uppercase tracking-wider text-ink-500 font-medium">
-            Last 12 months
+            {new Date().getFullYear()} year to date
           </div>
           <div className="font-display text-xl text-ink-900">Views &amp; reach by month</div>
         </div>
