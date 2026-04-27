@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "./supabase";
+import { fetchAccountProfileViewsTotal } from "./ig";
 import type { DateRange } from "./dates";
 
 export type Kpis = {
@@ -110,10 +111,18 @@ async function fetchAccountDaily(range: DateRange) {
 }
 
 export async function getKpis(range: DateRange): Promise<Kpis> {
-  const [posts, stories, account] = await Promise.all([
+  const [posts, stories, account, accountProfileViews] = await Promise.all([
     fetchPostsInRange(range),
     fetchStoryImports(range),
     fetchAccountDaily(range),
+    // Live-fetch the account-level profile_views total for the range. This is
+    // the authoritative "Page Visits" number — Meta's account-level total
+    // matches their Business Suite export, while summing per-post
+    // profile_visits gives a much smaller number (post-driven visits only).
+    fetchAccountProfileViewsTotal(
+      Math.floor(range.start.getTime() / 1000),
+      Math.floor(range.end.getTime() / 1000),
+    ),
   ]);
 
   let reels_posted = 0;
@@ -171,9 +180,10 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   const total_views = reel_views + static_views + story_views;
   const organic_reach = post_reach + story_reach;
 
-  // Account-level page visits: prefer sum of daily values if we have them.
-  const page_visits_acct = account.reduce((a, d) => a + (d.page_visits ?? 0), 0);
-  const page_visits = page_visits_acct || profile_visits;
+  // Account-level page visits: prefer Meta's authoritative account-total
+  // (live-fetched). Falls back to daily-stored values, then per-post sum.
+  const page_visits_daily = account.reduce((a, d) => a + (d.page_visits ?? 0), 0);
+  const page_visits = accountProfileViews ?? page_visits_daily ?? profile_visits;
 
   // Followers: end-of-period value, and delta vs first day of period.
   const followersPoints = account.filter((d) => d.followers_count != null);

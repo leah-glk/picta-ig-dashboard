@@ -53,9 +53,17 @@
   --color-ink-800: #292524;
   --color-ink-900: #1C1917;
 
-  /* Stars / highlight yellow (for stats / badges if needed) */
+  /* Stars / highlight yellow */
   --color-stars-400: #FFC634;
   --color-stars-500: #FFBA0C;
+
+  /* Semantic success / error (for compare deltas) */
+  --color-success-50: #E9F5E9;
+  --color-success-600: #215A24;
+  --color-success-700: #154718;
+  --color-error-50: #FCEFF0;
+  --color-error-600: #AC2038;
+  --color-error-700: #8A192C;
 
   /* Button pill radius */
   --radius-pill: 48px;

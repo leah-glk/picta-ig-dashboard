@@ -210,6 +210,45 @@ export async function fetchFollowersCount(): Promise<number> {
   return res.followers_count;
 }
 
+export async function fetchAccountProfileViewsTotal(
+  sinceUnix: number,
+  untilUnix: number,
+): Promise<number | null> {
+  // Account-level total profile views for an arbitrary range. v22+ requires
+  // metric_type=total_value (per-day time_series fails). This is the
+  // authoritative "Page Visits" number — much higher than summing per-post
+  // profile_visits, which only counts post-driven visits.
+  //
+  // Graph API caps this query at 30-day windows, so we chunk and sum.
+  const MAX = 30 * 24 * 60 * 60; // 30 days in seconds
+  let total = 0;
+  let any = false;
+  let cursor = sinceUnix;
+  while (cursor < untilUnix) {
+    const chunkEnd = Math.min(cursor + MAX, untilUnix);
+    try {
+      const res = await graph<{
+        data: { name: string; total_value?: { value: number } }[];
+      }>(`/${env.IG_BUSINESS_ID}/insights`, {
+        metric: "profile_views",
+        metric_type: "total_value",
+        period: "day",
+        since: cursor,
+        until: chunkEnd,
+      });
+      const v = res.data?.[0]?.total_value?.value;
+      if (typeof v === "number") {
+        total += v;
+        any = true;
+      }
+    } catch {
+      /* tolerate per-chunk failures */
+    }
+    cursor = chunkEnd;
+  }
+  return any ? total : null;
+}
+
 export async function fetchAccountDailyInsights(sinceUnix: number, untilUnix: number) {
   // Account-level insights with time_series to get per-day breakdowns.
   // `total_value` collapses to a single number, which we don't want here.

@@ -154,6 +154,33 @@ The Instagram Graph API access token is managed externally by Picta's social med
 | Followers delta | `followers_count` end-of-period minus start-of-period |
 | Page Visits | Account-level `profile_views` (sum over range), fallback to per-post profile_visits |
 
+### Why dashboard numbers may drift slightly from Meta Business Suite exports
+
+Expect ~1–6% deltas on **Reach** and **Total Views** between this dashboard
+and a Meta Business Suite CSV pulled at a different timestamp. Two reasons:
+
+1. **Metrics keep updating.** A post made on March 30 keeps accumulating views
+   for days/weeks after. A CSV exported on April 1 shows different numbers
+   than one exported on April 23. Our nightly cron re-pulls the last 7 days
+   to keep recent posts fresh, but values do shift.
+2. **Audience overlap.** Meta's account-level Reach dedupes a single user
+   seen across multiple posts; this dashboard sums per-post Reach, which can
+   slightly over-count.
+
+For **Page Visits**, we now use Meta's authoritative account-level
+`profile_views` total — matches their export. (Earlier versions summed
+per-post `profile_visits`, which is post-driven visits only and significantly
+under-counts.)
+
+### Followers history limitation
+
+The Instagram Graph API only exposes **today's** followers count + the
+**last 30 days** of daily deltas. Anything older than that is not
+retrievable. So historical month-over-month follower comparisons only work
+**after the dashboard has been running long enough** to capture them
+(~30 days minimum, longer for older periods). Going forward, every cron run
+captures the day's snapshot, so the historical record builds up.
+
 ### What's explicitly out-of-scope (v1)
 
 - Paid/ads data

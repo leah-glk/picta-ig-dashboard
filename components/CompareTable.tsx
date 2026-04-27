@@ -61,9 +61,13 @@ export function CompareTable({
                   {delta.zero ? (
                     <span className="text-ink-400">{delta.label}</span>
                   ) : delta.up ? (
-                    <span className="text-tertiary-600">↑ {delta.label}</span>
+                    <span className="font-medium text-success-700 bg-success-50 rounded-full px-2 py-0.5">
+                      ↑ {delta.label}
+                    </span>
                   ) : (
-                    <span className="text-secondary-500">↓ {delta.label}</span>
+                    <span className="font-medium text-error-700 bg-error-50 rounded-full px-2 py-0.5">
+                      ↓ {delta.label}
+                    </span>
                   )}
                 </td>
               </tr>
