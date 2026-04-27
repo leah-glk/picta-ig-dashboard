@@ -150,7 +150,7 @@ The Instagram Graph API access token is managed externally by Picta's social med
 | Reel Views | `views` on reel insights |
 | Story Views | Live-captured `views` + CSV-imported `views` |
 | Static post "views" | `views` metric — unified across FEED/REELS/STORY since Graph API v21+ (replaces the deprecated `impressions` metric) |
-| Engagement Rate | `(likes + comments + saves + shares) / total_views` — per brief; reposts not available via API |
+| Engagement Rate | Content Interactions ÷ Total Views, where Content Interactions = `likes + comments + saves + shares + replies + profile_visits` (matches Meta Business Suite). Reposts not exposed by API. |
 | Followers delta | `followers_count` end-of-period minus start-of-period |
 | Page Visits | Account-level `profile_views` (sum over range), fallback to per-post profile_visits |
 

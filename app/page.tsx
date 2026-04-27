@@ -72,7 +72,7 @@ export default async function Home({
           value={fmtPct(kpis.engagement_rate, 2)}
           big
           tone="tertiary"
-          sublabel="(likes + comments + saves + shares) / views"
+          sublabel="content interactions ÷ total views"
         />
       </section>
 

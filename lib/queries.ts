@@ -193,8 +193,12 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   const followers_delta =
     followers_end != null && followers_start != null ? followers_end - followers_start : null;
 
-  // Engagement rate per brief: (comments + likes + saves + shares + reposts) / total views.
-  const interactions = likes + comments + saves + shares; // reposts not available
+  // Engagement rate, defined to match Meta Business Suite's Content Interactions
+  // total: likes + comments + shares + saves + replies + profile_visits.
+  // (Brief listed a narrower numerator, but Meta's CSV export uses this wider
+  // grouping — we match it for parity.) Reposts not exposed by the API.
+  const interactions =
+    likes + comments + saves + shares + replies + profile_visits;
   const engagement_rate = total_views > 0 ? interactions / total_views : 0;
 
   return {
