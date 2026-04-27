@@ -4,6 +4,7 @@ import { supabaseAdmin } from "./supabase";
 import {
   classifyKind,
   fetchAccountDailyInsights,
+  fetchFollowerDailyDeltas,
   fetchFollowersCount,
   fetchMediaInsights,
   fetchTokenDebug,
@@ -154,7 +155,8 @@ async function processMedia(media: IgMedia, stats: SyncStats) {
 async function captureAccountSnapshot(since?: Date, until?: Date) {
   const db = supabaseAdmin();
 
-  // Today's followers snapshot (always).
+  // Today's followers snapshot (always) + walk back the last 30 days using the
+  // daily `follower_count` deltas (Meta only exposes 30 days of history).
   const followers = await fetchFollowersCount().catch(() => null);
   if (followers !== null) {
     const today = new Date().toISOString().slice(0, 10);
@@ -164,6 +166,32 @@ async function captureAccountSnapshot(since?: Date, until?: Date) {
         { date: today, followers_count: followers, captured_at: new Date().toISOString() },
         { onConflict: "date" },
       );
+
+    // Walk back: end-of-yesterday total = today's total - today's delta;
+    // end-of-day-before-yesterday = yesterday's total - yesterday's delta; etc.
+    const now = Math.floor(Date.now() / 1000);
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60;
+    const deltas = await fetchFollowerDailyDeltas(thirtyDaysAgo, now);
+    if (deltas.length > 0) {
+      // Walk from most recent backwards. Most recent delta is yesterday.
+      let runningTotal = followers;
+      const rows: { date: string; followers_count: number; captured_at: string }[] = [];
+      for (let i = deltas.length - 1; i >= 0; i--) {
+        const d = deltas[i];
+        // The total at end_time of THIS day = runningTotal (after applying this day's delta).
+        // So this date's row records that value, then we subtract the delta to get the
+        // prior end-of-day total.
+        rows.push({
+          date: d.date,
+          followers_count: runningTotal,
+          captured_at: new Date().toISOString(),
+        });
+        runningTotal -= d.delta;
+      }
+      if (rows.length > 0) {
+        await db.from("instagram_account_daily").upsert(rows, { onConflict: "date" });
+      }
+    }
   }
 
   // Daily reach + profile_views over the range (chunks of 30 days max).

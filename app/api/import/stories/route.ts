@@ -1,6 +1,30 @@
 import { NextResponse } from "next/server";
+import { fromZonedTime } from "date-fns-tz";
 import { supabaseAdmin } from "@/lib/supabase";
 import { env } from "@/lib/env";
+
+// Meta Business Suite CSV "Publish time" has no timezone suffix. The export
+// is rendered in the account's timezone (America/New_York for @pictaphotoapp),
+// so we parse it as ET and convert to UTC ISO. Without this, end-of-day stories
+// shift to wrong calendar days (~6% drift on monthly story view totals).
+const CSV_TZ = "America/New_York";
+
+function parseMetaCsvDate(raw: string): Date | null {
+  // Meta emits e.g. "12/31/2025 10:59" — month/day/year H:MM.
+  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+  if (!m) {
+    // Fallback to native parsing for any odd row.
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const [, mm, dd, yyyy, hh, min] = m;
+  const isoLocal = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")} ${hh.padStart(2, "0")}:${min}:00`;
+  try {
+    return fromZonedTime(isoLocal, CSV_TZ);
+  } catch {
+    return null;
+  }
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -172,8 +196,8 @@ export async function POST(request: Request) {
       stats.skipped_no_date++;
       continue;
     }
-    const d = new Date(rawDate);
-    if (isNaN(d.getTime())) {
+    const d = parseMetaCsvDate(rawDate);
+    if (!d) {
       stats.skipped_no_date++;
       continue;
     }

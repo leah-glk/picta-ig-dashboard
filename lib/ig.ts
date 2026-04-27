@@ -210,6 +210,35 @@ export async function fetchFollowersCount(): Promise<number> {
   return res.followers_count;
 }
 
+export async function fetchFollowerDailyDeltas(
+  sinceUnix: number,
+  untilUnix: number,
+): Promise<{ date: string; delta: number }[]> {
+  // `follower_count` returns daily NET follower changes (gains - losses).
+  // Meta only allows querying the last 30 days (excluding today). Returns
+  // [{date: 'YYYY-MM-DD', delta: number}], sorted ascending.
+  try {
+    const res = await graph<{
+      data: {
+        name: string;
+        values: { value: number; end_time: string }[];
+      }[];
+    }>(`/${env.IG_BUSINESS_ID}/insights`, {
+      metric: "follower_count",
+      period: "day",
+      since: sinceUnix,
+      until: untilUnix,
+    });
+    const row = res.data?.[0];
+    if (!row) return [];
+    return row.values
+      .map((v) => ({ date: v.end_time.slice(0, 10), delta: v.value }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchAccountProfileViewsTotal(
   sinceUnix: number,
   untilUnix: number,
