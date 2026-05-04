@@ -68,10 +68,10 @@ function PostCard({ post, variant }: { post: TopPost; variant: "static" | "reel"
     >
       <div className="text-sm font-medium text-ink-800 mb-2 line-clamp-1">{titleText}</div>
       <div className={frameCls}>
-        {post.thumbnail_url ? (
+        {post.ig_id ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={post.thumbnail_url}
+            src={`/api/img?id=${post.ig_id}`}
             alt=""
             className="w-full h-full object-cover group-hover:scale-[1.02] transition"
           />
