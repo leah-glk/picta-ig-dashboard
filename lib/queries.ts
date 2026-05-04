@@ -89,7 +89,7 @@ async function fetchStoryImports(range: DateRange) {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("instagram_story_imports")
-    .select("published_at, views, reach, replies, shares, likes, profile_visits")
+    .select("published_at, views, reach, replies, shares, likes, profile_visits, sticker_taps")
     .gte("published_at", range.start.toISOString())
     .lt("published_at", range.end.toISOString());
   if (error) throw new Error(error.message);
@@ -138,6 +138,7 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   let api_story_views = 0;
   let api_story_reach = 0;
   let api_story_shares = 0;
+  let follows = 0;
 
   for (const p of posts) {
     const m = p.post_metrics;
@@ -159,6 +160,7 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
     likes += m.likes;
     comments += m.comments;
     profile_visits += m.profile_visits;
+    follows += m.follows;
   }
 
   // Combine live-captured story metrics with CSV-imported history.
@@ -166,16 +168,24 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   let csv_story_reach = 0;
   let csv_story_replies = 0;
   let csv_story_shares = 0;
+  let csv_story_likes = 0;
+  let csv_story_profile_visits = 0;
+  let csv_story_sticker_taps = 0;
   for (const s of stories) {
     csv_story_views += s.views;
     csv_story_reach += s.reach;
     csv_story_replies += s.replies;
     csv_story_shares += s.shares;
+    csv_story_likes += s.likes ?? 0;
+    csv_story_profile_visits += s.profile_visits ?? 0;
+    csv_story_sticker_taps += s.sticker_taps ?? 0;
   }
   const story_views = api_story_views + csv_story_views;
   const story_reach = api_story_reach + csv_story_reach;
   const replies = csv_story_replies;
   shares += api_story_shares + csv_story_shares;
+  likes += csv_story_likes;
+  profile_visits += csv_story_profile_visits;
 
   const total_views = reel_views + static_views + story_views;
   const organic_reach = post_reach + story_reach;
@@ -194,11 +204,17 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
     followers_end != null && followers_start != null ? followers_end - followers_start : null;
 
   // Engagement rate, defined to match Meta Business Suite's Content Interactions
-  // total: likes + comments + shares + saves + replies + profile_visits.
-  // (Brief listed a narrower numerator, but Meta's CSV export uses this wider
-  // grouping — we match it for parity.) Reposts not exposed by the API.
+  // total: likes + comments + shares + saves + replies + profile_visits + follows
+  // + sticker_taps. Reposts not exposed by the API.
   const interactions =
-    likes + comments + saves + shares + replies + profile_visits;
+    likes +
+    comments +
+    saves +
+    shares +
+    replies +
+    profile_visits +
+    follows +
+    csv_story_sticker_taps;
   const engagement_rate = total_views > 0 ? interactions / total_views : 0;
 
   return {
