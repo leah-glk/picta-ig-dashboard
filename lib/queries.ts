@@ -38,6 +38,18 @@ export type TopPost = {
   engagement_rate: number;
 };
 
+type StoryImportRow = {
+  ig_id: string | null;
+  published_at: string;
+  views: number;
+  reach: number;
+  likes: number;
+  shares: number;
+  replies: number;
+  profile_visits: number;
+  sticker_taps: number;
+};
+
 type PostRow = {
   id: string;
   ig_id: string;
@@ -89,7 +101,7 @@ async function fetchStoryImports(range: DateRange) {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("instagram_story_imports")
-    .select("published_at, views, reach, replies, shares, likes, profile_visits, sticker_taps")
+    .select("ig_id, published_at, views, reach, replies, shares, likes, profile_visits, sticker_taps")
     .gte("published_at", range.start.toISOString())
     .lt("published_at", range.end.toISOString());
   if (error) throw new Error(error.message);
@@ -140,6 +152,13 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   let api_story_shares = 0;
   let follows = 0;
 
+  // Build a set of story ig_ids that are also in CSV imports — those are the
+  // authoritative final counts, so we'd double-count if we summed the
+  // partial live-captured snapshots too. Prefer CSV.
+  const csvStoryIds = new Set(
+    (stories as StoryImportRow[]).map((s) => s.ig_id).filter(Boolean) as string[],
+  );
+
   for (const p of posts) {
     const m = p.post_metrics;
     if (!m) continue;
@@ -150,6 +169,9 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
       static_posted++;
       static_views += m.views;
     } else if (p.kind === "story") {
+      // Skip live-captured story if a CSV import (finalized) covers the same
+      // story — avoids double counting.
+      if (csvStoryIds.has(p.ig_id)) continue;
       api_story_views += m.views;
       api_story_reach += m.reach;
       api_story_shares += m.shares;
@@ -159,8 +181,12 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
     shares += m.shares;
     likes += m.likes;
     comments += m.comments;
-    profile_visits += m.profile_visits;
     follows += m.follows;
+    // Per-post profile_visits is intentionally NOT added to ER numerator —
+    // Meta excludes it from per-post "Content Interactions" (only includes it
+    // at the story level, where it represents profile-visit sticker taps).
+    // We still surface it as a separate "Profile Visits" stat below.
+    profile_visits += m.profile_visits;
   }
 
   // Combine live-captured story metrics with CSV-imported history.
@@ -185,6 +211,9 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   const replies = csv_story_replies;
   shares += api_story_shares + csv_story_shares;
   likes += csv_story_likes;
+  // Story profile_visits ARE counted in Meta's CI; track separately so the
+  // ER numerator includes story profile_visits without double-counting per-post.
+  const story_profile_visits = csv_story_profile_visits;
   profile_visits += csv_story_profile_visits;
 
   const total_views = reel_views + static_views + story_views;
@@ -203,17 +232,19 @@ export async function getKpis(range: DateRange): Promise<Kpis> {
   const followers_delta =
     followers_end != null && followers_start != null ? followers_end - followers_start : null;
 
-  // Engagement rate, defined to match Meta Business Suite's Content Interactions
-  // total: likes + comments + shares + saves + replies + profile_visits + follows
-  // + sticker_taps. Reposts not exposed by the API.
+  // Engagement rate, defined to match Meta Business Suite's "Total Interactions":
+  //  Posts contribute: likes + comments + shares + saves + follows
+  //  Stories contribute: likes + shares + replies + profile_visits + sticker_taps
+  // Note: per-post profile_visits is excluded (Meta tracks that as account-level
+  // Page Visits, not part of per-post Content Interactions).
   const interactions =
     likes +
     comments +
     saves +
     shares +
     replies +
-    profile_visits +
     follows +
+    story_profile_visits +
     csv_story_sticker_taps;
   const engagement_rate = total_views > 0 ? interactions / total_views : 0;
 
@@ -307,14 +338,14 @@ export async function getMonthlyBars(): Promise<
     db
       .from("instagram_posts")
       .select(
-        "published_at, is_owner, is_boosted, instagram_post_metrics(views, reach)",
+        "ig_id, kind, published_at, is_owner, is_boosted, instagram_post_metrics(views, reach)",
       )
       .eq("is_owner", true)
       .eq("is_boosted", false)
       .gte("published_at", start.toISOString()),
     db
       .from("instagram_story_imports")
-      .select("published_at, views, reach")
+      .select("ig_id, published_at, views, reach")
       .gte("published_at", start.toISOString()),
   ]);
 
@@ -326,7 +357,14 @@ export async function getMonthlyBars(): Promise<
   }
   const bucketOf = (iso: string) => iso.slice(0, 7);
 
+  // De-dupe live-captured stories that are also in CSV imports — CSV is
+  // authoritative (post-expiry final counts).
+  const csvStoryIds = new Set(
+    (stories ?? []).map((s) => s.ig_id).filter(Boolean) as string[],
+  );
+
   for (const p of posts ?? []) {
+    if (p.kind === "story" && csvStoryIds.has(p.ig_id)) continue;
     const key = bucketOf(p.published_at);
     if (!buckets.has(key)) continue;
     const m = Array.isArray(p.instagram_post_metrics)
