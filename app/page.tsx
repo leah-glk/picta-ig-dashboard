@@ -3,7 +3,12 @@ import { KpiCard } from "@/components/KpiCard";
 import { RangePicker } from "@/components/RangePicker";
 import { YearlyBarChart } from "@/components/YearlyBarChart";
 import { TopPostsSection } from "@/components/TopPosts";
-import { currentMonth, customRange, fmtMonthInput, monthRange } from "@/lib/dates";
+import {
+  currentMonth,
+  customRange,
+  fmtMonthInput,
+  monthRange,
+} from "@/lib/dates";
 import {
   getKpis,
   getMonthlyBars,
@@ -30,6 +35,7 @@ export default async function Home({
 }) {
   const sp = await searchParams;
   const range = rangeFromSearch(sp);
+  const isCurrentMonth = range.start.getTime() === currentMonth().start.getTime();
 
   const [kpis, yearly, topStatics, topReels, storyFrom] = await Promise.all([
     getKpis(range),
@@ -49,6 +55,11 @@ export default async function Home({
           <h1 className="font-display text-5xl text-primary-800 leading-none mt-1">
             {range.label}
           </h1>
+          {isCurrentMonth && (
+            <p className="mt-2 text-xs italic text-ink-500">
+              *month in progress, KPIs to be verified and analyzed EOM
+            </p>
+          )}
         </div>
         <RangePicker defaultMonth={fmtMonthInput(range.start)} />
       </div>
