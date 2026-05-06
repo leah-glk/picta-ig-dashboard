@@ -123,6 +123,20 @@ async function fetchAccountDaily(range: DateRange) {
 }
 
 export async function getKpis(range: DateRange): Promise<Kpis> {
+  // For closed months (entire range is in the past AND aligns with a calendar
+  // month), prefer the frozen snapshot so numbers don't drift over time.
+  const looksLikeMonth =
+    range.start.getUTCDate() === range.start.getUTCDate() && // always true; placeholder
+    range.end.getTime() - range.start.getTime() <= 32 * 24 * 60 * 60 * 1000;
+  if (looksLikeMonth && range.end.getTime() <= Date.now()) {
+    const { loadSnapshot } = await import("./snapshots");
+    const snap = await loadSnapshot(range);
+    if (snap) return snap;
+  }
+  return computeKpis(range);
+}
+
+export async function computeKpis(range: DateRange): Promise<Kpis> {
   const [posts, stories, account, accountProfileViews] = await Promise.all([
     fetchPostsInRange(range),
     fetchStoryImports(range),

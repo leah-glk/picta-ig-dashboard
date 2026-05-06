@@ -15,6 +15,7 @@ import {
   getTopPosts,
   getStoryDataAvailableFrom,
 } from "@/lib/queries";
+import { getSnapshotMeta } from "@/lib/snapshots";
 import { fmtNum, fmtPct } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -37,13 +38,15 @@ export default async function Home({
   const range = rangeFromSearch(sp);
   const isCurrentMonth = range.start.getTime() === currentMonth().start.getTime();
 
-  const [kpis, yearly, topStatics, topReels, storyFrom] = await Promise.all([
-    getKpis(range),
-    getMonthlyBars(),
-    getTopPosts(range, "static", 4),
-    getTopPosts(range, "reel", 2),
-    getStoryDataAvailableFrom(),
-  ]);
+  const [kpis, yearly, topStatics, topReels, storyFrom, snapshotMeta] =
+    await Promise.all([
+      getKpis(range),
+      getMonthlyBars(),
+      getTopPosts(range, "static", 4),
+      getTopPosts(range, "reel", 2),
+      getStoryDataAvailableFrom(),
+      isCurrentMonth ? null : getSnapshotMeta(range),
+    ]);
 
   return (
     <Shell>
@@ -58,6 +61,11 @@ export default async function Home({
           {isCurrentMonth && (
             <p className="mt-2 text-xs italic text-ink-500">
               *month in progress, KPIs to be verified and analyzed EOM
+            </p>
+          )}
+          {!isCurrentMonth && snapshotMeta && (
+            <p className="mt-2 text-xs text-ink-500">
+              🔒 Finalized {new Date(snapshotMeta.frozen_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/New_York" })}
             </p>
           )}
         </div>

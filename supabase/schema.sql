@@ -86,6 +86,16 @@ create table if not exists public.instagram_story_imports (
 create index if not exists instagram_story_imports_published_at_idx on public.instagram_story_imports (published_at desc);
 
 -- ---------------------------------------------------------------------------
+-- Instagram: monthly KPI snapshots (frozen at end of month so past months
+-- don't drift as Meta's totals settle and posts continue accumulating views).
+-- ---------------------------------------------------------------------------
+create table if not exists public.instagram_monthly_snapshots (
+  month            date primary key,        -- first day of the month, e.g. '2026-04-01'
+  kpis             jsonb not null,
+  frozen_at        timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Sync log (platform-agnostic).
 -- ---------------------------------------------------------------------------
 create table if not exists public.sync_runs (
