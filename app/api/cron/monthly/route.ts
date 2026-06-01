@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import { snapshotMonth, snapshotMissingMonths } from "@/lib/snapshots";
-import { currentMonth } from "@/lib/dates";
+import { currentMonth, monthRange } from "@/lib/dates";
+import { syncRange } from "@/lib/sync";
 
 // Monthly KPI snapshot cron.
 // Runs on the 1st of each month at 13:00 UTC (~8am ET / 9am EDT) — see vercel.json.
@@ -35,17 +36,29 @@ async function handle(request: Request) {
     return NextResponse.json({ ok: true, mode: "backfill", ...result });
   }
 
-  // Default: snapshot the previous calendar month.
+  // Default: re-sync the previous calendar month (so view counts on older
+  // posts are refreshed to their current values), then snapshot it.
+  // Without this re-sync, posts that fell out of the daily cron's 7-day
+  // window would have stale view counts at snapshot time.
   const now = currentMonth();
   const prev = new Date(now.start);
   prev.setUTCMonth(prev.getUTCMonth() - 1);
   const y = prev.getUTCFullYear();
   const m0 = prev.getUTCMonth();
+
+  const range = monthRange(y, m0);
+  const syncStats = await syncRange({
+    since: range.start,
+    until: range.end,
+    label: `monthly-refresh:${y}-${String(m0 + 1).padStart(2, "0")}`,
+  });
+
   const kpis = await snapshotMonth(y, m0);
   return NextResponse.json({
     ok: true,
     mode: "previous-month",
     month: `${y}-${String(m0 + 1).padStart(2, "0")}`,
+    sync: syncStats,
     kpis,
   });
 }
